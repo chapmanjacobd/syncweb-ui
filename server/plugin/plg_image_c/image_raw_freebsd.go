@@ -1,7 +1,7 @@
 package plg_image_c
 
 // #include "image_raw.h"
-// #cgo LDFLAGS: -L /usr/local/lib -L /usr/lib -L /lib -l:libyuv.a -l:libjpeg.a -l:libraw.a -fopenmp -l:libc++.a -llcms2 -lm
+// #cgo LDFLAGS: -L /usr/local/lib -L /usr/lib -L /lib -lyuv -ljpeg -lraw -fopenmp -lc++ -llcms2 -lm
 // #cgo CFLAGS: -I /usr/local/include
 import "C"
 

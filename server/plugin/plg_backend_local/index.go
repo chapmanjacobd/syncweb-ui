@@ -1,11 +1,12 @@
 package plg_backend_local
 
 import (
-	. "github.com/mickael-kerjean/filestash/server/common"
-	"golang.org/x/crypto/bcrypt"
 	"io"
 	"os"
 	"os/user"
+
+	. "github.com/mickael-kerjean/filestash/server/common"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func init() {
@@ -109,7 +110,7 @@ func (this Local) Cat(path string) (io.ReadCloser, error) {
 }
 
 func (this Local) Mkdir(path string) error {
-	return SafeOsMkdir(path, 0755)
+	return SafeOsMkdir(path, 0o755)
 }
 
 func (this Local) Rm(path string) error {
@@ -121,7 +122,7 @@ func (this Local) Mv(from, to string) error {
 }
 
 func (this Local) Save(path string, content io.Reader) error {
-	f, err := SafeOsOpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0664)
+	f, err := SafeOsOpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o664)
 	if err != nil {
 		return err
 	}

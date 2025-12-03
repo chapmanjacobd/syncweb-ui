@@ -1,7 +1,7 @@
 package plg_image_c
 
 // #include "image_jpeg.h"
-// #cgo LDFLAGS: -L /usr/local/lib -L /usr/lib -L /lib -l:libjpeg.a
+// #cgo LDFLAGS: -L /usr/local/lib -L /usr/lib -L /lib -ljpeg
 // #cgo CFLAGS: -I /usr/local/include
 import "C"
 
