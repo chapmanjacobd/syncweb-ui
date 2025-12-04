@@ -1,0 +1,15 @@
+investigate what is FPath--it may be worth trying to use the folderID for FPath and the basename for FName
+Test scenario: two Syncweb folders with the same basename, compare behavior with/without FPath modification
+
+
+https://github.com/mickael-kerjean/filestash/blob/master/server/plugin/plg_backend_s3/index.go
+https://github.com/mickael-kerjean/filestash/blob/master/server/plugin/plg_backend_git/index.go
+
+newMiniPuller, StreamingServer
+https://github.com/pixelspark/sushitrain/commit/570ab1d1623a1dd96cf49aa224d500d7471e9986
+https://github.com/pixelspark/sushitrain/blob/da0c466b956aa2c1cca87526c9251349dd752147/SushitrainCore/src/server.go#L28
+
+FILESTASH_BASE=
+config/config.json
+
+# APPLICATION_URL=box/syncweb

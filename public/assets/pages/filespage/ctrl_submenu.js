@@ -74,18 +74,28 @@ function componentLeft(render, { $scroll, getSelectionLength$ }) {
     effect(getSelectionLength$.pipe(
         rxjs.filter((l) => l === 0),
         rxjs.mergeMap(() => getPermission()),
-        rxjs.map(() => render(createFragment(`
-            <button data-action="new-file" title="${t("New File")}"${toggleDependingOnPermission(currentPath(), "new-file")} aria-controls="newthing">
-                ${window.innerWidth < 410 && t("New File").length > 10
-        ? t("New File", null, "NEW_FILE::SHORT")
-        : t("New File")}
-            </button>
-            <button data-action="new-folder" title="${t("New Folder")}"${toggleDependingOnPermission(currentPath(), "new-folder")} aria-controls="newthing">
-                ${window.innerWidth < 410 && t("New Folder").length > 10
-        ? t("New Folder", null, "NEW_FOLDER::SHORT")
-        : t("New Folder")}
-            </button>
-        `))),
+        rxjs.map(() => {
+            const isRoot = currentPath() === "/";
+
+            const newFolderLabel =
+                window.innerWidth < 410 && t("New Folder").length > 10
+                    ? t("New Folder", null, "NEW_FOLDER::SHORT")
+                    : t("New Folder");
+
+            const newFileLabel =
+                window.innerWidth < 410 && t("New File").length > 10
+                        ? t("New File", null, "NEW_FILE::SHORT")
+                        : t("New File");
+
+            return render(createFragment(`
+                <button data-action="new-file" title="${t("New File")}" ${isRoot ? `style="display:none"` : toggleDependingOnPermission(currentPath(), "new-file")} aria-controls="newthing">
+                    ${newFileLabel}
+                </button>
+                <button data-action="new-folder" title="${isRoot ? "New Syncweb Folder" : t("New Folder")}" ${toggleDependingOnPermission(currentPath(), "new-folder")} aria-controls="newthing">
+                    ${isRoot ? "New Syncweb Folder" : newFolderLabel}
+                </button>
+            `));
+        }),
         rxjs.mergeMap(($page) => rxjs.merge(
             onClick(qs($page, `[data-action="new-file"]`)).pipe(rxjs.mapTo("NEW_FILE")),
             onClick(qs($page, `[data-action="new-folder"]`)).pipe(rxjs.mapTo("NEW_FOLDER")),
@@ -110,8 +120,8 @@ function componentLeft(render, { $scroll, getSelectionLength$ }) {
             <a target="_blank" ${generateLinkAttributes(expandSelection())}><button data-action="download" title="${t("Download")}">
                 ${t("Download")}
             </button></a>
-            <button data-action="delete"${toggleDependingOnPermission(currentPath(), "delete")} title="${t("Remove")}">
-                ${t("Remove")}
+            <button data-action="delete"${toggleDependingOnPermission(currentPath(), "delete")} title="${t("Delete")}">
+                ${t("Delete")}
             </button>
             <button data-action="rename" title="${t("Rename")}"${toggleDependingOnPermission(currentPath(), "rename")}>
                 ${t("Rename")}
@@ -179,7 +189,7 @@ function componentLeft(render, { $scroll, getSelectionLength$ }) {
                 ${t("Download")}
             </button></a>
             <button data-action="delete"${toggleDependingOnPermission(currentPath(), "delete")}>
-                ${t("Remove")}
+                ${t("Delete")}
             </button>
         `))),
         rxjs.mergeMap(($page) => rxjs.merge(
@@ -190,7 +200,7 @@ function componentLeft(render, { $scroll, getSelectionLength$ }) {
                 const paths = expandSelection().map(({ path }) => path);
                 return rxjs.from(componentDelete(
                     createModal(modalOpt),
-                    "remove",
+                    "delete",
                 )).pipe(rxjs.mergeMap(() => {
                     clearSelection();
                     return rm(...paths);
