@@ -5,6 +5,8 @@ don't do path_hash
 
 make ~/Syncweb default folder--SYNCWEB_HOME env var?
 
+sort folders by total size
+
 https://github.com/mickael-kerjean/filestash/blob/master/server/plugin/plg_backend_s3/index.go
 https://github.com/mickael-kerjean/filestash/blob/master/server/plugin/plg_backend_git/index.go
 
