@@ -104,6 +104,12 @@ export function createThing({
         $filesize.textContent = formatSize(size);
         $label.appendChild($filesize);
     }
+    if (type === "directory" && size > 0) {
+        const $filesize = document.createElement("span");
+        $filesize.classList.add("component_filesize");
+        $filesize.textContent = formatSize(size);
+        $label.appendChild($filesize);
+    }
     if (mime && view === "grid" && TYPES.THUMBNAILER.has(mime) && offline === false) {
         $extension.style.display = "none";
         $img.classList.add("thumbnail");

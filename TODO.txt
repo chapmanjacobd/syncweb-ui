@@ -1,14 +1,34 @@
-investigate what is FPath--it may be worth trying to use the folderID for FPath and the basename for FName
-Test scenario: two Syncweb folders with the same basename, compare behavior with/without FPath modification
-
-sort folders by total size
-
 https://github.com/mickael-kerjean/filestash/blob/master/server/plugin/plg_backend_s3/index.go
 https://github.com/mickael-kerjean/filestash/blob/master/server/plugin/plg_backend_git/index.go
 
+- Selective download of folders
+
+- Flat files and flat folders history view to see what files and folders are most recently updated and most popular
+
+- APK files
+
+- Create and Delete Syncweb-Automated rules (wishlist, blocklist)
+
+- Full text search
+
+- View pending downloads, calculate future free space, cancel button
+
+- Syncweb devices view with accept, reject, bulk, and automated options
+
+- Size filtering
+
+- Date filtering
+
+- Convert list view to automated rule button like Gmail's search Create Filter button
+
+- sushitrain-like streaming video/audio
 newMiniPuller, StreamingServer
 https://github.com/pixelspark/sushitrain/commit/570ab1d1623a1dd96cf49aa224d500d7471e9986
 https://github.com/pixelspark/sushitrain/blob/da0c466b956aa2c1cca87526c9251349dd752147/SushitrainCore/src/server.go#L28
+
+- Non-syncweb folders, Copy/Move/Rename/Delete, Maybe just show external drives?
+
+- Copy folders/files
 
 FILESTASH_BASE=
 config/config.json

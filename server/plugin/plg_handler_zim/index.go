@@ -238,6 +238,7 @@ func ensureKiwixServing(zimPath string, app *App) (int, error) {
 	// Start kiwix-serve
 	cmd := exec.Command(
 		KIWIX_BIN,
+		"--nolibrarybutton",
 		"-p", fmt.Sprintf("%d", port),
 		localPath,
 	)

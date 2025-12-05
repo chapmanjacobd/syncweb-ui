@@ -87,10 +87,11 @@ type StFolder struct {
 
 // API /rest/db/browse
 type StFile struct {
-	Name    string      `json:"name"`
-	Type    string      `json:"type"`
-	Size    int64       `json:"size"`
-	ModTime RFC3339Nano `json:"modTime"`
+	Name     string      `json:"name"`
+	Type     string      `json:"type"`
+	Size     int64       `json:"size"`
+	ModTime  RFC3339Nano `json:"modTime"`
+	Children []StFile    `json:"children,omitempty"`
 }
 
 func (s Syncweb) ResolveLocalPath(path string) (string, error) {
@@ -224,10 +225,11 @@ func (s Syncweb) LoginForm() Form {
 
 func (s Syncweb) Ls(path string) ([]os.FileInfo, error) {
 	path = filepath.Clean(path)
-	files := make([]os.FileInfo, 0)
 
 	// Case 1: Root path "/" - List all configured folders
 	if path == "/" {
+		files := make([]os.FileInfo, 0)
+
 		for folderID, localPath := range s.FoldersMap {
 			// Check local existence of the root folder path itself
 			_, err := os.Lstat(localPath)
@@ -243,50 +245,63 @@ func (s Syncweb) Ls(path string) ([]os.FileInfo, error) {
 			})
 		}
 		return files, nil
+	} else {
+		// Case 2: Sub-directory path "/<folderID>/sub/path"
+		parts := strings.Split(strings.Trim(path, "/"), "/")
+		if len(parts) == 0 {
+			return nil, NewError("Invalid path", 400)
+		}
+
+		folderID := parts[0]
+		relativePath := strings.Join(parts[1:], "/")
+		localRoot, exists := s.FoldersMap[folderID]
+		if !exists {
+			return nil, NewError("Folder ID not found: "+folderID, 404)
+		}
+
+		stFiles, err := s.files(folderID, relativePath)
+		if err != nil {
+			return nil, NewError("Syncthing API error during browse: "+err.Error(), 500)
+		}
+
+		files := make([]os.FileInfo, 0)
+		for _, stFile := range stFiles {
+			// fmt.Print(stFile.Type)
+			fType := func(s string) string {
+				switch s {
+				case "FILE_INFO_TYPE_DIRECTORY":
+					return "directory"
+				case "FILE_INFO_TYPE_FILE":
+					return "file"
+				case "FILE_INFO_TYPE_SYMLINK", "FILE_INFO_TYPE_SYMLINK_FILE", "FILE_INFO_TYPE_SYMLINK_DIRECTORY":
+					return "symlink"
+				}
+				return s
+			}(stFile.Type)
+
+			absPath := filepath.Join(localRoot, relativePath, stFile.Name)
+
+			files = append(files, File{
+				FName: stFile.Name,
+				FPath: absPath,
+				FType: fType,
+				FTime: stFile.ModTime.Unix(),
+				FSize: folderSize(stFile),
+			})
+		}
+		return files, nil
 	}
+}
 
-	// Case 2: Sub-directory path "/<folderID>/sub/path"
-	parts := strings.Split(strings.Trim(path, "/"), "/")
-	if len(parts) == 0 {
-		return nil, NewError("Invalid path", 400)
+func folderSize(f StFile) int64 {
+	if f.Type != "FILE_INFO_TYPE_DIRECTORY" || len(f.Children) == 0 {
+		return f.Size
 	}
-
-	folderID := parts[0]
-	relativePath := strings.Join(parts[1:], "/")
-	localRoot, exists := s.FoldersMap[folderID]
-	if !exists {
-		return nil, NewError("Folder ID not found: "+folderID, 404)
+	var total int64
+	for _, c := range f.Children {
+		total += folderSize(c)
 	}
-
-	stFiles, err := s.files(folderID, relativePath)
-	if err != nil {
-		return nil, NewError("Syncthing API error during browse: "+err.Error(), 500)
-	}
-
-	for _, stFile := range stFiles {
-		// fmt.Print(stFile.Type)
-		fType := func(s string) string {
-			switch s {
-			case "FILE_INFO_TYPE_DIRECTORY":
-				return "directory"
-			case "FILE_INFO_TYPE_FILE":
-				return "file"
-			case "FILE_INFO_TYPE_SYMLINK", "FILE_INFO_TYPE_SYMLINK_FILE", "FILE_INFO_TYPE_SYMLINK_DIRECTORY":
-				return "symlink"
-			}
-			return s
-		}(stFile.Type)
-
-		files = append(files, File{
-			FName: stFile.Name,
-			FPath: filepath.Join(localRoot, relativePath, stFile.Name),
-			FType: fType,
-			FTime: stFile.ModTime.Unix(),
-			FSize: stFile.Size,
-		})
-	}
-
-	return files, nil
+	return total
 }
 
 func (s Syncweb) Cat(path string) (io.ReadCloser, error) {
