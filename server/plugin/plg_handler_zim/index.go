@@ -6,8 +6,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"net/http/httputil"
-	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -24,7 +22,6 @@ import (
 )
 
 const (
-	ZIM_URI          = "/zim"
 	KIWIX_BIN        = "kiwix-serve"
 	KIWIX_PORT_START = 8181
 )
@@ -65,9 +62,6 @@ func init() {
 			[]Middleware{SessionStart, LoggedInOnly},
 			*app,
 		)).Methods("GET")
-
-		// Proxy to kiwix-serve instances
-		r.PathPrefix(ZIM_URI + "/").HandlerFunc(ZimProxyHandler)
 
 		return nil
 	})
@@ -135,7 +129,7 @@ func ZimViewHandler(app *App, res http.ResponseWriter, req *http.Request) {
 	contentURL, err := getKiwixContentURL(port)
 	if err != nil {
 		Log.Warning("[zim] Could not parse catalog, using root URL: %s", err.Error())
-		contentURL = ZIM_URI + "/"
+		contentURL = fmt.Sprintf("http://127.0.0.1:%d/", port)
 	}
 
 	// Generate iframe HTML
@@ -178,7 +172,7 @@ func ZimViewHandler(app *App, res http.ResponseWriter, req *http.Request) {
 }
 
 func getKiwixContentURL(port int) (string, error) {
-	catalogURL := fmt.Sprintf("http://127.0.0.1:%d%s/catalog/v2/entries", port, ZIM_URI)
+	catalogURL := fmt.Sprintf("http://127.0.0.1:%d/catalog/v2/entries", port)
 
 	resp, err := http.Get(catalogURL)
 	if err != nil {
@@ -204,16 +198,16 @@ func getKiwixContentURL(port int) (string, error) {
 	if len(feed.Entries) == 1 {
 		for _, link := range feed.Entries[0].Link {
 			if link.Type == "text/html" {
-				// Convert /zim/content/wikinews_en_all_maxi_2025-09
-				// to /zim/viewer#wikinews_en_all_maxi_2025-09
-				contentPath := strings.TrimPrefix(link.Href, ZIM_URI+"/content/")
-				return fmt.Sprintf("http://127.0.0.1:%d%s/viewer#%s", port, ZIM_URI, contentPath), nil
+				// Convert /content/wikinews_en_all_maxi_2025-09
+				// to /viewer#wikinews_en_all_maxi_2025-09
+				contentPath := strings.TrimPrefix(link.Href, "/content/")
+				return fmt.Sprintf("http://127.0.0.1:%d/viewer#%s", port, contentPath), nil
 			}
 		}
 	}
 
 	// Multiple entries or no direct link found, use the root catalog
-	return fmt.Sprintf("http://127.0.0.1:%d%s/viewer", port, ZIM_URI), nil
+	return fmt.Sprintf("http://127.0.0.1:%d/viewer", port), nil
 }
 
 func ensureKiwixServing(zimPath string, app *App) (int, error) {
@@ -242,7 +236,6 @@ func ensureKiwixServing(zimPath string, app *App) (int, error) {
 	cmd := exec.Command(
 		KIWIX_BIN,
 		"-p", fmt.Sprintf("%d", port),
-		"-r", ZIM_URI,
 		localPath,
 	)
 
@@ -335,71 +328,4 @@ func getLocalZimPath(path string, app *App) (string, error) {
 	}
 
 	return "", NewError(fmt.Sprintf("Remote .zim files from %s not yet supported", backend), http.StatusNotImplemented)
-}
-
-func ZimProxyHandler(res http.ResponseWriter, req *http.Request) {
-	// Extract the port from the request path or use a lookup
-	// For now, we'll try to match based on the instance
-	kiwixMutex.Lock()
-	var targetPort int
-	// Use the first available instance, or you could store port in session
-	for _, instance := range kiwixInstances {
-		targetPort = instance.Port
-		instance.LastUsed = time.Now()
-		break
-	}
-	kiwixMutex.Unlock()
-
-	if targetPort == 0 {
-		http.NotFound(res, req)
-		return
-	}
-
-	req.URL.Path = strings.TrimPrefix(req.URL.Path, ZIM_URI)
-
-	targetURL := fmt.Sprintf("http://127.0.0.1:%d", targetPort)
-
-	u, err := url.Parse(targetURL)
-	if err != nil {
-		SendErrorResult(res, err)
-		return
-	}
-
-	req.Header.Set("X-Forwarded-Host", req.Host+ZIM_URI)
-	req.Header.Set("X-Forwarded-Proto", func() string {
-		if scheme := req.Header.Get("X-Forwarded-Proto"); scheme != "" {
-			return scheme
-		} else if req.TLS != nil {
-			return "https"
-		}
-		return "http"
-	}())
-
-	reverseProxy := &httputil.ReverseProxy{
-		Director: func(rq *http.Request) {
-			rq.URL.Scheme = u.Scheme
-			rq.URL.Host = u.Host
-			rq.URL.Path = func(a, b string) string {
-				aslash := strings.HasSuffix(a, "/")
-				bslash := strings.HasPrefix(b, "/")
-				switch {
-				case aslash && bslash:
-					return a + b[1:]
-				case !aslash && !bslash:
-					return a + "/" + b
-				}
-				return a + b
-			}(u.Path, rq.URL.Path)
-			if u.RawQuery == "" || rq.URL.RawQuery == "" {
-				rq.URL.RawQuery = u.RawQuery + rq.URL.RawQuery
-			} else {
-				rq.URL.RawQuery = u.RawQuery + "&" + rq.URL.RawQuery
-			}
-		},
-	}
-	reverseProxy.ErrorHandler = func(rw http.ResponseWriter, rq *http.Request, err error) {
-		Log.Warning("[zim] proxy error: %s", err.Error())
-		SendErrorResult(rw, NewError(err.Error(), http.StatusBadGateway))
-	}
-	reverseProxy.ServeHTTP(res, req)
 }
