@@ -207,7 +207,7 @@ func getKiwixContentURL(port int) (string, error) {
 	}
 
 	// Multiple entries or no direct link found, use the root catalog
-	return fmt.Sprintf("http://127.0.0.1:%d/viewer", port), nil
+	return fmt.Sprintf("http://127.0.0.1:%d/", port), nil
 }
 
 func ensureKiwixServing(zimPath string, app *App) (int, error) {

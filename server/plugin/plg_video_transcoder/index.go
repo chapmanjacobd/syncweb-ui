@@ -2,7 +2,6 @@ package plg_video_transcoder
 
 import (
 	"bytes"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -220,7 +219,7 @@ func hlsTranscodeHandler(ctx *App, res http.ResponseWriter, req *http.Request) {
 	cmd.Stderr = &buffer
 	err = cmd.Run()
 	if err != nil {
-		Log.Error("plg_video_transcoder::ffmpeg::run '%s' - %s", err.Error(), base64.StdEncoding.EncodeToString(buffer.Bytes()))
+		Log.Error("plg_video_transcoder::ffmpeg::run '%s' - %s", err.Error(), buffer.Bytes())
 	}
 }
 
