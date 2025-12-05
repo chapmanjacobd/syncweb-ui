@@ -2,7 +2,6 @@ package plg_video_thumbnail
 
 import (
 	"bytes"
-	"encoding/base64"
 	"fmt"
 	"io"
 	"net/http"
@@ -84,7 +83,7 @@ func (this *ffmpegThumbnail) Generate(reader io.ReadCloser, ctx *App, res *http.
 	cmd.Stderr = &errBuff
 	if err := cmd.Run(); err != nil {
 		if req.Context().Err() == nil {
-			Log.Debug("plg_video_thumbnail::generate::run path=%s err=%s", req.URL.Query().Get("path"), base64.StdEncoding.EncodeToString(errBuff.Bytes()))
+			Log.Debug("plg_video_thumbnail::generate::run path=%s err=%s", req.URL.Query().Get("path"), errBuff.Bytes())
 			return nil, err
 		}
 		return nil, err
