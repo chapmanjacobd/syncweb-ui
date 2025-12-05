@@ -122,8 +122,11 @@ func ZimViewHandler(app *App, res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Wait a moment for kiwix to be ready
-	time.Sleep(1 * time.Second)
+	// Wait for kiwix to be ready
+	if err := waitForKiwixReady(port, 45*time.Second); err != nil {
+		SendErrorResult(res, NewError(fmt.Sprintf("Kiwix server did not start in time: %s", err.Error()), http.StatusServiceUnavailable))
+		return
+	}
 
 	// Try to get the content URL from the catalog
 	contentURL, err := getKiwixContentURL(port)
@@ -260,6 +263,24 @@ func ensureKiwixServing(zimPath string, app *App) (int, error) {
 	Log.Info("[zim] started kiwix-serve on port %d for %s", port, zimPath)
 
 	return port, nil
+}
+
+func waitForKiwixReady(port int, timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
+	checkURL := fmt.Sprintf("http://127.0.0.1:%d/", port)
+
+	for time.Now().Before(deadline) {
+		resp, err := http.Head(checkURL)
+		if err == nil {
+			resp.Body.Close()
+			if resp.StatusCode == http.StatusOK {
+				return nil
+			}
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
+
+	return fmt.Errorf("timeout waiting for kiwix-serve on port %d", port)
 }
 
 func findAvailablePort() int {

@@ -2,8 +2,6 @@ package plg_backend_syncweb
 
 import (
 	"bytes"
-	"crypto/sha1"
-	"encoding/base64"
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
@@ -446,6 +444,14 @@ func (s Syncweb) Touch(path string) error {
 }
 
 func (s Syncweb) syncwebDefaultFolderRoot() string {
+	if env := os.Getenv("SYNCWEB_HOME"); env != "" {
+		s, err := filepath.EvalSymlinks(env)
+		if err == nil {
+			return s
+		} else {
+			fmt.Printf("Could not evaluate SYNCWEB_HOME environment symlinks '%s': %s", env, err)
+		}
+	}
 	return filepath.Join(home, "Syncweb")
 }
 
@@ -529,6 +535,45 @@ func (s Syncweb) folderStats() (map[string]any, error) {
 	return m, nil
 }
 
+func sepReplace(s, replacement string) string {
+	if runtime.GOOS == "windows" {
+		drivePart := filepath.VolumeName(s)
+
+		relativePart := s
+		if drivePart != "" {
+			// Remove the drive/volume name to get the relative-like path.
+			// e.g., "C:\Users\File.txt" -> "\Users\File.txt"
+			relativePart = strings.TrimPrefix(s, drivePart)
+
+			// Remove the leading path separator if present, to mimic relative_to behavior
+			// e.g., "\Users\File.txt" -> "Users\File.txt"
+			if strings.HasPrefix(relativePart, string(filepath.Separator)) {
+				relativePart = strings.TrimPrefix(relativePart, string(filepath.Separator))
+			}
+		}
+
+		formattedDrive := ""
+		if drivePart != "" {
+			// Get the first character (the drive letter), convert to lowercase, and remove the colon is implicit
+			// (e.g., "C:" -> "c")
+			formattedDrive = strings.ToLower(drivePart[:1])
+		}
+
+		formattedRelative := strings.ReplaceAll(relativePart, string(filepath.Separator), replacement)
+
+		if formattedDrive != "" {
+			return formattedDrive + replacement + formattedRelative
+		} else {
+			return formattedRelative
+		}
+	} else {
+		// Handle Non-Windows (Linux/macOS)
+		relativePart := s
+		relativePart = strings.TrimPrefix(s, string(filepath.Separator))
+		return strings.ReplaceAll(relativePart, string(filepath.Separator), replacement)
+	}
+}
+
 func (s Syncweb) createFolderID(path string) (string, error) {
 	stats, err := s.folderStats()
 	if err != nil {
@@ -540,14 +585,7 @@ func (s Syncweb) createFolderID(path string) (string, error) {
 		return name, nil
 	}
 
-	return pathHash(path), nil
-}
-
-func pathHash(path string) string {
-	abs, _ := filepath.Abs(path)
-	sum := sha1.Sum([]byte(abs))
-	encoded := base64.RawURLEncoding.EncodeToString(sum[:])
-	return encoded
+	return sepReplace(path, "."), nil
 }
 
 func (s Syncweb) addFolder(data map[string]any) error {
