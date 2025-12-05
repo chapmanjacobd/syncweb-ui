@@ -95,7 +95,7 @@ type StFile struct {
 	ModTime RFC3339Nano `json:"modTime"`
 }
 
-func (s Syncweb) resolveLocalPath(path string) (string, error) {
+func (s Syncweb) ResolveLocalPath(path string) (string, error) {
 	parts := strings.Split(strings.Trim(path, "/"), "/")
 	if len(parts) == 0 {
 		return "", NewError("Invalid path", 400)
@@ -295,7 +295,7 @@ func (s Syncweb) Cat(path string) (io.ReadCloser, error) {
 	// returns the local file reader if available, or triggers synchronization if remote
 	path = filepath.Clean(path)
 
-	localPath, err := s.resolveLocalPath(path)
+	localPath, err := s.ResolveLocalPath(path)
 	if err != nil {
 		// This path does not resolve to a local Syncthing folder
 		return nil, err
@@ -365,7 +365,7 @@ func (s Syncweb) Cat(path string) (io.ReadCloser, error) {
 func (s Syncweb) Rm(path string) error {
 	path = filepath.Clean(path)
 
-	localPath, err := s.resolveLocalPath(path)
+	localPath, err := s.ResolveLocalPath(path)
 	if err != nil {
 		return NewError("Cannot resolve path for deletion: "+err.Error(), 400)
 	}
@@ -384,11 +384,11 @@ func (s Syncweb) Rm(path string) error {
 }
 
 func (s Syncweb) Mv(from string, to string) error {
-	localFromPath, err := s.resolveLocalPath(from)
+	localFromPath, err := s.ResolveLocalPath(from)
 	if err != nil {
 		return NewError("Cannot resolve source path for move: "+err.Error(), 400)
 	}
-	localToPath, err := s.resolveLocalPath(to)
+	localToPath, err := s.ResolveLocalPath(to)
 	if err != nil {
 		return NewError("Cannot resolve destination path for move: "+err.Error(), 400)
 	}
@@ -412,7 +412,7 @@ func (s Syncweb) Mv(from string, to string) error {
 func (s Syncweb) Save(path string, content io.Reader) error {
 	path = filepath.Clean(path)
 
-	localPath, err := s.resolveLocalPath(path)
+	localPath, err := s.ResolveLocalPath(path)
 	if err != nil {
 		return NewError("Cannot resolve path for save: "+err.Error(), 400)
 	}
@@ -428,7 +428,7 @@ func (s Syncweb) Save(path string, content io.Reader) error {
 func (s Syncweb) Touch(path string) error {
 	path = filepath.Clean(path)
 
-	localPath, err := s.resolveLocalPath(path)
+	localPath, err := s.ResolveLocalPath(path)
 	if err != nil {
 		return NewError("Cannot resolve path for save: "+err.Error(), 400)
 	}

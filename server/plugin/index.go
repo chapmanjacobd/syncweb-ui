@@ -34,6 +34,7 @@ import (
 	_ "github.com/mickael-kerjean/filestash/server/plugin/plg_handler_console"
 	_ "github.com/mickael-kerjean/filestash/server/plugin/plg_handler_mcp"
 	_ "github.com/mickael-kerjean/filestash/server/plugin/plg_handler_site"
+	_ "github.com/mickael-kerjean/filestash/server/plugin/plg_handler_zim"
 	_ "github.com/mickael-kerjean/filestash/server/plugin/plg_image_ascii"
 	_ "github.com/mickael-kerjean/filestash/server/plugin/plg_image_c"
 	_ "github.com/mickael-kerjean/filestash/server/plugin/plg_license"

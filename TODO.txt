@@ -1,6 +1,9 @@
 investigate what is FPath--it may be worth trying to use the folderID for FPath and the basename for FName
 Test scenario: two Syncweb folders with the same basename, compare behavior with/without FPath modification
 
+don't do path_hash
+
+make ~/Syncweb default folder--SYNCWEB_HOME env var?
 
 https://github.com/mickael-kerjean/filestash/blob/master/server/plugin/plg_backend_s3/index.go
 https://github.com/mickael-kerjean/filestash/blob/master/server/plugin/plg_backend_git/index.go
