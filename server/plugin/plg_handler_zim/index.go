@@ -116,7 +116,7 @@ func ZimViewHandler(app *App, res http.ResponseWriter, req *http.Request) {
 	f.Close()
 
 	// Get or create kiwix instance for this file
-	port, err := ensureKiwixServing(fullPath, app)
+	port, err := ensureKiwixServing(app, fullPath)
 	if err != nil {
 		SendErrorResult(res, err)
 		return
@@ -213,7 +213,7 @@ func getKiwixContentURL(port int) (string, error) {
 	return fmt.Sprintf("http://127.0.0.1:%d/", port), nil
 }
 
-func ensureKiwixServing(zimPath string, app *App) (int, error) {
+func ensureKiwixServing(app *App, zimPath string) (int, error) {
 	kiwixMutex.Lock()
 	defer kiwixMutex.Unlock()
 
@@ -224,7 +224,7 @@ func ensureKiwixServing(zimPath string, app *App) (int, error) {
 	}
 
 	// Get the actual file path
-	localPath, err := getLocalZimPath(zimPath, app)
+	localPath, err := getLocalZimPath(app, zimPath)
 	if err != nil {
 		return 0, err
 	}
@@ -332,15 +332,15 @@ func cleanupOldInstances() {
 	}
 }
 
-func getLocalZimPath(path string, app *App) (string, error) {
+func getLocalZimPath(app *App, path string) (string, error) {
 	backend := fmt.Sprintf("%T", app.Backend)
 
 	if strings.HasSuffix(backend, "Local") {
 		return path, nil
 	}
 	if strings.HasSuffix(backend, "Syncweb") {
-		if syncwebBackend, ok := app.Backend.(*Syncweb); ok {
-			localPath, err := syncwebBackend.ResolveLocalPath(path)
+		if syncweb, ok := app.Backend.(*Syncweb); ok {
+			localPath, err := syncweb.ResolveLocalPath(path)
 			if err != nil {
 				return "", NewError(fmt.Sprintf("Could not resolve local path: %s", err.Error()), http.StatusNotImplemented)
 			}

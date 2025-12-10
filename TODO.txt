@@ -1,23 +1,22 @@
-https://github.com/mickael-kerjean/filestash/blob/master/server/plugin/plg_backend_s3/index.go
-https://github.com/mickael-kerjean/filestash/blob/master/server/plugin/plg_backend_git/index.go
-
-- Selective download of folders
-
 - Flat files and flat folders history view to see what files and folders are most recently updated and most popular
-
-- APK files
 
 - Create and Delete Syncweb-Automated rules (wishlist, blocklist)
 
-- Full text search
+- Syncweb devices view with accept, reject, bulk actions
+
+could it just be a special text file? update every five seconds?
+syncweb/devices/pending
+syncweb/devices/accepted
+
+- View rachael modules
+
+- APK files
+
+- Full text search for text contents, video subtitles
 
 - View pending downloads, calculate future free space, cancel button
 
-- Syncweb devices view with accept, reject, bulk, and automated options
-
-- Size filtering
-
-- Date filtering
+- Selective download of folders
 
 - Convert list view to automated rule button like Gmail's search Create Filter button
 

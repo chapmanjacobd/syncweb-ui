@@ -94,6 +94,43 @@ type StFile struct {
 	Children []StFile    `json:"children,omitempty"`
 }
 
+// API /rest/db/file
+type StFileInfo struct {
+	Availability any           `json:"availability"`
+	Global       FileInfoBlock `json:"global"`
+	Local        FileInfoBlock `json:"local"`
+}
+
+type FileInfoBlock struct {
+	BlocksHash         string           `json:"blocksHash"`
+	Deleted            bool             `json:"deleted"`
+	Ignored            bool             `json:"ignored"`
+	InodeChange        RFC3339Nano      `json:"inodeChange"`
+	Invalid            bool             `json:"invalid"`
+	LocalFlags         int              `json:"localFlags"`
+	Modified           RFC3339Nano      `json:"modified"`
+	ModifiedBy         string           `json:"modifiedBy"`
+	MustRescan         bool             `json:"mustRescan"`
+	Name               string           `json:"name"`
+	NoPermissions      bool             `json:"noPermissions"`
+	NumBlocks          int              `json:"numBlocks"`
+	Platform           FileInfoPlatform `json:"platform"`
+	PreviousBlocksHash string           `json:"previousBlocksHash"`
+	Sequence           int              `json:"sequence"`
+	Size               int64            `json:"size"`
+	Type               string           `json:"type"`
+	Version            []string         `json:"version"`
+}
+
+type FileInfoPlatform struct {
+	Unix    any `json:"Unix"`
+	Windows any `json:"Windows"`
+	Linux   any `json:"Linux"`
+	Darwin  any `json:"Darwin"`
+	FreeBSD any `json:"FreeBSD"`
+	NetBSD  any `json:"NetBSD"`
+}
+
 func (s Syncweb) ResolveLocalPath(path string) (string, error) {
 	parts := strings.Split(strings.Trim(path, "/"), "/")
 	if len(parts) == 0 {
@@ -153,6 +190,30 @@ func (s Syncweb) files(folderID string, prefix string) ([]StFile, error) {
 	return stFiles, nil
 }
 
+func (s Syncweb) file(folderID string, relativePath string) (*StFileInfo, error) {
+	apiPath := fmt.Sprintf("/rest/db/file?folder=%s&file=%s", folderID, relativePath)
+
+	resp, err := s.request("GET", apiPath, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, fmt.Errorf("404 Not Found %s", relativePath)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to fetch file %s: %s", relativePath, resp.Status)
+	}
+
+	var out StFileInfo
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
 func init() {
 	Backend.Register("syncweb", &Syncweb{})
 }
@@ -209,6 +270,18 @@ func (s *Syncweb) Init(params map[string]string, app *App) (IBackend, error) {
 	}
 
 	return backend, nil
+}
+
+func (s Syncweb) Meta(path string) Metadata {
+	if path == "/" {
+		return Metadata{
+			CanCreateFile: NewBool(false),
+			CanRename:     NewBool(false),
+			CanMove:       NewBool(false),
+			CanUpload:     NewBool(false),
+		}
+	}
+	return Metadata{}
 }
 
 func (s Syncweb) LoginForm() Form {
