@@ -1,6 +1,8 @@
-- Flat files and flat folders history view to see what files and folders are most recently updated and most popular
+Downloads view (r)
+Folders view (potential downloads) (virtual)
+ ` Uploads view (w)
 
-- Create and Delete Syncweb-Automated rules (wishlist, blocklist)
+- Create and Delete Syncweb-Automated rules (wishlist.txt?, blocklist.txt?)
 
 - Syncweb devices view with accept, reject, bulk actions
 
@@ -12,13 +14,11 @@ syncweb/devices/accepted
 
 - APK files
 
+- ZIM files: reverse proxy :port -> /port/
+
 - Full text search for text contents, video subtitles
 
 - View pending downloads, calculate future free space, cancel button
-
-- Selective download of folders
-
-- Convert list view to automated rule button like Gmail's search Create Filter button
 
 - sushitrain-like streaming video/audio
 newMiniPuller, StreamingServer
@@ -26,6 +26,10 @@ https://github.com/pixelspark/sushitrain/commit/570ab1d1623a1dd96cf49aa224d500d7
 https://github.com/pixelspark/sushitrain/blob/da0c466b956aa2c1cca87526c9251349dd752147/SushitrainCore/src/server.go#L28
 
 - Non-syncweb folders, Copy/Move/Rename/Delete, Maybe just show external drives?
+
+- Selective download of folders
+- Flat files and flat folders history view to see what files and folders are most recently updated and most popular
+- Convert list view to automated rule button like Gmail's search Create Filter button
 
 - Copy folders/files
 
