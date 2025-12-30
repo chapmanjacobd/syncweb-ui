@@ -14,8 +14,6 @@ syncweb/devices/accepted
 
 - APK files
 
-- ZIM files: reverse proxy :port -> /port/
-
 - Full text search for text contents, video subtitles
 
 - View pending downloads, calculate future free space, cancel button

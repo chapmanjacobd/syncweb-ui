@@ -93,15 +93,14 @@ func init() {
 func ZimProxyHandler(app *App, res http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
 	port := vars["port"]
-	rest := vars["rest"]
 
-	target, _ := url.Parse(fmt.Sprintf("http://127.0.0.1:%s", port))
-	proxy := httputil.NewSingleHostReverseProxy(target)
-
-	req.URL.Path = "/" + rest
-	if req.URL.RawQuery != "" {
-		req.URL.RawPath = req.URL.Path
+	target, err := url.Parse(fmt.Sprintf("http://127.0.0.1:%s", port))
+	if err != nil {
+		SendErrorResult(res, err)
+		return
 	}
+
+	proxy := httputil.NewSingleHostReverseProxy(target)
 
 	proxy.ServeHTTP(res, req)
 }
@@ -175,7 +174,8 @@ func ZimViewHandler(app *App, res http.ResponseWriter, req *http.Request) {
 }
 
 func getKiwixContentURL(port int) (string, error) {
-	catalogURL := fmt.Sprintf("http://127.0.0.1:%d/catalog/v2/entries", port)
+	urlRoot := fmt.Sprintf("/api/zim/proxy/%d", port)
+	catalogURL := fmt.Sprintf("http://127.0.0.1:%d%s/catalog/v2/entries", port, urlRoot)
 
 	resp, err := http.Get(catalogURL)
 	if err != nil {
@@ -198,13 +198,13 @@ func getKiwixContentURL(port int) (string, error) {
 			if link.Type == "text/html" {
 				// Convert /content/wikinews_en_all_maxi_2025-09
 				// to /viewer#wikinews_en_all_maxi_2025-09
-				contentPath := strings.TrimPrefix(link.Href, "/content/")
-				return fmt.Sprintf("/api/zim/proxy/%d/viewer#%s", port, contentPath), nil
+				contentPath := strings.TrimPrefix(link.Href, urlRoot+"/content/")
+				return fmt.Sprintf("%s/viewer#%s", urlRoot, contentPath), nil
 			}
 		}
 	}
 
-	return fmt.Sprintf("/api/zim/proxy/%d/", port), nil
+	return urlRoot + "/", nil
 }
 
 func ensureKiwixServing(app *App, zimPath string) (int, error) {
@@ -234,6 +234,8 @@ func ensureKiwixServing(app *App, zimPath string) (int, error) {
 		KIWIX_BIN,
 		"--nolibrarybutton",
 		"-p", fmt.Sprintf("%d", port),
+		// https://github.com/kiwix/kiwix-tools/pull/86/changes
+		fmt.Sprintf("--urlRootLocation=/api/zim/proxy/%d/", port),
 		localPath,
 	)
 
@@ -262,7 +264,8 @@ func ensureKiwixServing(app *App, zimPath string) (int, error) {
 
 func waitForKiwixReady(port int, timeout time.Duration) error {
 	deadline := time.Now().Add(timeout)
-	checkURL := fmt.Sprintf("http://127.0.0.1:%d/", port)
+	urlRoot := fmt.Sprintf("/api/zim/proxy/%d/", port)
+	checkURL := fmt.Sprintf("http://127.0.0.1:%d%s", port, urlRoot)
 
 	for time.Now().Before(deadline) {
 		resp, err := http.Head(checkURL)

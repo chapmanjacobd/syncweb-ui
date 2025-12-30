@@ -753,3 +753,75 @@ func (ut *RFC3339Nano) UnmarshalJSON(b []byte) error {
 
 	return nil
 }
+
+func (s Syncweb) Stat(path string) (os.FileInfo, error) {
+	path = filepath.Clean(path)
+
+	if path == "/" {
+		return File{
+			FName: "/",
+			FType: "directory",
+			FTime: time.Now().Unix(),
+		}, nil
+	}
+
+	parts := strings.Split(strings.Trim(path, "/"), "/")
+	folderID := parts[0]
+	localRoot, exists := s.FoldersMap[folderID]
+	if !exists {
+		return nil, ErrNotFound
+	}
+
+	// Case 2: Folder root "/folderID"
+	if len(parts) == 1 {
+		fi, err := os.Lstat(localRoot)
+		modTime := time.Now().Unix()
+		if err == nil {
+			modTime = fi.ModTime().Unix()
+		}
+		return File{
+			FName: folderID,
+			FType: "directory",
+			FTime: modTime,
+			FPath: localRoot,
+		}, nil
+	}
+
+	// Case 3: Specific file or sub-directory
+	relativePath := strings.Join(parts[1:], "/")
+	info, err := s.file(folderID, relativePath)
+	if err != nil {
+		// Fallback to local filesystem check if API fails or file is ignored
+		if localPath, err := s.ResolveLocalPath(path); err == nil {
+			if fi, err := os.Lstat(localPath); err == nil {
+				return File{
+					FName: fi.Name(),
+					FType: func() string {
+						if fi.IsDir() {
+							return "directory"
+						}
+						return "file"
+					}(),
+					FTime: fi.ModTime().Unix(),
+					FSize: fi.Size(),
+					FPath: localPath,
+				}, nil
+			}
+		}
+		return nil, ErrNotFound
+	}
+
+	// Map Syncthing block to Filestash File
+	return File{
+		FName: filepath.Base(info.Local.Name),
+		FType: func() string {
+			if info.Local.Type == "directory" || info.Local.Type == "FILE_INFO_TYPE_DIRECTORY" {
+				return "directory"
+			}
+			return "file"
+		}(),
+		FTime: info.Local.Modified.Unix(),
+		FSize: info.Local.Size,
+		FPath: filepath.Join(localRoot, relativePath),
+	}, nil
+}
