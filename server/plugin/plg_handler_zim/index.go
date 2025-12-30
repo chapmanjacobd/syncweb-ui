@@ -3,9 +3,10 @@ package plg_handler_zim
 import (
 	"encoding/xml"
 	"fmt"
-	"io"
 	"net"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -63,15 +64,21 @@ func init() {
 			*app,
 		)).Methods("GET")
 
+		r.HandleFunc(COOKIE_PATH+"zim/proxy/{port}/{rest:.*}", NewMiddlewareChain(
+			ZimProxyHandler,
+			[]Middleware{SessionStart, LoggedInOnly},
+			*app,
+		))
+
 		return nil
 	})
 
 	// Register .zim files to open with the zim viewer
 	Hooks.Register.XDGOpen(`
-		if(location.pathname.toLowerCase().endsWith(".zim")) {
-			return ["appframe", {"endpoint": "/api/zim/view"}];
-		}
-	`)
+        if(location.pathname.toLowerCase().endsWith(".zim")) {
+            return ["appframe", {"endpoint": "/api/zim/view"}];
+        }
+    `)
 
 	// Cleanup old instances periodically
 	go func() {
@@ -81,6 +88,22 @@ func init() {
 			cleanupOldInstances()
 		}
 	}()
+}
+
+func ZimProxyHandler(app *App, res http.ResponseWriter, req *http.Request) {
+	vars := mux.Vars(req)
+	port := vars["port"]
+	rest := vars["rest"]
+
+	target, _ := url.Parse(fmt.Sprintf("http://127.0.0.1:%s", port))
+	proxy := httputil.NewSingleHostReverseProxy(target)
+
+	req.URL.Path = "/" + rest
+	if req.URL.RawQuery != "" {
+		req.URL.RawPath = req.URL.Path
+	}
+
+	proxy.ServeHTTP(res, req)
 }
 
 func ZimViewHandler(app *App, res http.ResponseWriter, req *http.Request) {
@@ -101,13 +124,11 @@ func ZimViewHandler(app *App, res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Verify the file exists and is a .zim file
 	if !strings.HasSuffix(strings.ToLower(fullPath), ".zim") {
 		SendErrorResult(res, NewError("Not a .zim file", http.StatusBadRequest))
 		return
 	}
 
-	// Get the file from backend to verify it exists
 	f, err := app.Backend.Cat(fullPath)
 	if err != nil {
 		SendErrorResult(res, err)
@@ -115,58 +136,37 @@ func ZimViewHandler(app *App, res http.ResponseWriter, req *http.Request) {
 	}
 	f.Close()
 
-	// Get or create kiwix instance for this file
 	port, err := ensureKiwixServing(app, fullPath)
 	if err != nil {
 		SendErrorResult(res, err)
 		return
 	}
 
-	// Wait for kiwix to be ready
 	if err := waitForKiwixReady(port, 45*time.Second); err != nil {
 		SendErrorResult(res, NewError(fmt.Sprintf("Kiwix server did not start in time: %s", err.Error()), http.StatusServiceUnavailable))
 		return
 	}
 
-	// Try to get the content URL from the catalog
 	contentURL, err := getKiwixContentURL(port)
 	if err != nil {
 		Log.Warning("[zim] Could not parse catalog, using root URL: %s", err.Error())
-		contentURL = fmt.Sprintf("http://127.0.0.1:%d/", port)
+		contentURL = fmt.Sprintf("/api/zim/proxy/%d/", port)
 	}
 
-	// Generate iframe HTML
 	zimName := filepath.Base(fullPath)
 	html := fmt.Sprintf(`<!DOCTYPE html>
 <html lang="en">
 <head>
-	<meta charset="utf-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1">
-	<title>%s</title>
-	<style>
-		body, html {
-			margin: 0;
-			padding: 0;
-			height: 100%%;
-			overflow: hidden;
-		}
-		iframe {
-			width: 100%%;
-			height: 100%%;
-			border: none;
-		}
-		.error {
-			color: white;
-			text-align: center;
-			margin-top: 50px;
-			font-size: 18px;
-			opacity: 0.8;
-			font-family: monospace;
-		}
-	</style>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>%s</title>
+    <style>
+        body, html { margin: 0; padding: 0; height: 100%%; overflow: hidden; background: #000; }
+        iframe { width: 100%%; height: 100%%; border: none; }
+    </style>
 </head>
 <body>
-	<iframe src="%s" allowfullscreen></iframe>
+    <iframe src="%s" allowfullscreen></iframe>
 </body>
 </html>`, zimName, contentURL)
 
@@ -187,13 +187,8 @@ func getKiwixContentURL(port int) (string, error) {
 		return "", fmt.Errorf("catalog returned status %d", resp.StatusCode)
 	}
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
-	}
-
 	var feed OpdsFeed
-	if err := xml.Unmarshal(body, &feed); err != nil {
+	if err := xml.NewDecoder(resp.Body).Decode(&feed); err != nil {
 		return "", err
 	}
 
@@ -204,13 +199,12 @@ func getKiwixContentURL(port int) (string, error) {
 				// Convert /content/wikinews_en_all_maxi_2025-09
 				// to /viewer#wikinews_en_all_maxi_2025-09
 				contentPath := strings.TrimPrefix(link.Href, "/content/")
-				return fmt.Sprintf("http://127.0.0.1:%d/viewer#%s", port, contentPath), nil
+				return fmt.Sprintf("/api/zim/proxy/%d/viewer#%s", port, contentPath), nil
 			}
 		}
 	}
 
-	// Multiple entries or no direct link found, use the root catalog
-	return fmt.Sprintf("http://127.0.0.1:%d/", port), nil
+	return fmt.Sprintf("/api/zim/proxy/%d/", port), nil
 }
 
 func ensureKiwixServing(app *App, zimPath string) (int, error) {
@@ -280,19 +274,14 @@ func waitForKiwixReady(port int, timeout time.Duration) error {
 		}
 		time.Sleep(200 * time.Millisecond)
 	}
-
 	return fmt.Errorf("timeout waiting for kiwix-serve on port %d", port)
 }
 
 func findAvailablePort() int {
-	// Try up to 100 ports starting from KIWIX_PORT_START
 	for i := 0; i < 100; i++ {
 		port := KIWIX_PORT_START + i
-		if !usedPorts[port] {
-			// Try to bind to the port to verify it's actually available
-			if isPortAvailable(port) {
-				return port
-			}
+		if !usedPorts[port] && isPortAvailable(port) {
+			return port
 		}
 	}
 	return 0
